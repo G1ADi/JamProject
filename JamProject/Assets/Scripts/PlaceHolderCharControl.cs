@@ -5,26 +5,87 @@ using System.Collections;
 
 public class PlaceHolderCharControl : MonoBehaviour
 {
+
+    public GameObject bananaPrefab;
+    public int bananas = 0;
     public float speed = 10.0f;
     public float rotationSpeed = 100.0f;
+    public float jumpForce = 10.0f;
+    public bool isOnGround = true;
+    private Animator playerAnim;
+    private Rigidbody playerRb;
+
+    void Start() 
+    {   
+        playerRb = GetComponent<Rigidbody>();
+        playerAnim = GetComponent<Animator>();
+    }
 
     void Update()
     {
+        if (Input.GetKeyDown(KeyCode.O)) 
+        {
+            bananas = 0;
+            Debug.Log($"Bananas set to 0");
+        }  
+
+        if (Input.GetKeyDown(KeyCode.Space) && isOnGround) 
+        {
+            playerRb.AddForce(Vector3.up * jumpForce, ForceMode.Impulse);
+            isOnGround = false;
+            playerAnim.SetBool("isOnGround", false);
+            playerAnim.SetTrigger("Jump_trig");
+        }
         // Get the horizontal and vertical axis.
         // By default they are mapped to the arrow keys.
         // The value is in the range -1 to 1
-        float translation = Input.GetAxis("Vertical") * -speed;
+        float horizontalInput = Input.GetAxis("Horizontal");
+        float verticalInput = Input.GetAxis("Vertical");
         // - speed because the 3D model is backwards
-        float rotation = Input.GetAxis("Horizontal") * rotationSpeed;
 
-        // Make it move 10 meters per second instead of 10 meters per frame...
-        translation *= Time.deltaTime;
-        rotation *= Time.deltaTime;
+        Vector3 movementDirection = new Vector3(horizontalInput, 0, verticalInput);
+        movementDirection.Normalize();
 
-        // Move translation along the object's z-axis
-        transform.Translate(0, 0, translation);
+        transform.Translate(movementDirection * Time.deltaTime * -speed, Space.World);
 
-        // Rotate around our y-axis
-        transform.Rotate(0, rotation, 0);
+        if (movementDirection != Vector3.zero)
+        {
+            Quaternion toRotation = Quaternion.LookRotation(movementDirection, Vector3.up);
+
+            transform.rotation = Quaternion.RotateTowards(transform.rotation, toRotation, rotationSpeed * Time.deltaTime);
+        }
+
+        if (horizontalInput > 0.01f || horizontalInput < -0.01 || verticalInput > 0.01f || verticalInput < -0.01)
+        {
+            playerAnim.SetBool("isWalking", true);
+        } else {
+            playerAnim.SetBool("isWalking", false);
+        }
     }
+
+
+    private void OnCollisionEnter(Collision other)
+    {
+        if (other.gameObject.CompareTag("Ground"))
+        {
+            isOnGround = true;
+            playerAnim.SetBool("isOnGround", true);
+        }
+
+        if (other.gameObject.CompareTag("Banana"))
+        {
+            bananas += 1;
+            Debug.Log($"I got a frickin banana");
+            Destroy(other.gameObject);               
+        }
+    }
+
+
+    private void LateUpdate() 
+    {
+        if (bananas == 10) {
+            transform.localScale += new Vector3(1, 1, 1);
+        }
+    }
+
 }
